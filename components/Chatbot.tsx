@@ -18,6 +18,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
   const chatSessionRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatbotRef = useRef<HTMLDivElement>(null);
+  const lastWidth = useRef(window.innerWidth);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,25 +71,28 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
     setIsOpen(false);
   };
 
-  // Dynamic Viewport Height Logic
+  // Improved Viewport Height Logic: Only updates when width changes (orientation or browser resize)
+  // This prevents the chatbot from shrinking or moving when the keyboard appears.
   useEffect(() => {
     const updateVh = () => {
-      const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-      if (isOpen) scrollToBottom();
+      // If width hasn't changed, we assume it's a keyboard toggle or URL bar shift
+      // and we keep the height strictly fixed.
+      if (window.innerWidth !== lastWidth.current) {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        lastWidth.current = window.innerWidth;
+      }
     };
 
-    window.visualViewport?.addEventListener('resize', updateVh);
-    window.visualViewport?.addEventListener('scroll', updateVh);
-    window.addEventListener('resize', updateVh);
-    updateVh();
+    // Initialize height on first mount
+    const initialVh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${initialVh}px`);
 
+    window.addEventListener('resize', updateVh);
     return () => {
-      window.visualViewport?.removeEventListener('resize', updateVh);
-      window.visualViewport?.removeEventListener('scroll', updateVh);
       window.removeEventListener('resize', updateVh);
     };
-  }, [isOpen]);
+  }, []);
 
   useEffect(() => {
     const initChat = async () => {
@@ -174,9 +178,6 @@ Rules: Keep answers VERY FAST and SHORT.
     if (e.key === 'Enter') handleSend();
   };
 
-  // State to track if it's desktop view for height adjustment
-  // Tablets are generally < 1024px in many cases or landscape up to 1280px.
-  // We'll target <= 1023px for the "Mobile/Tablet Half Height" logic.
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
   useEffect(() => {
