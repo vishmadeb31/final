@@ -217,8 +217,9 @@ Instruction: Keep text minimal and helpful.
       <div 
         ref={chatbotRef}
         style={{
-          height: isDesktop ? '650px' : 'calc(var(--vh, 1vh) * 50)',
-          maxHeight: isDesktop ? '650px' : 'calc(var(--vh, 1vh) * 50)',
+          // Dynamic height for PC: uses calc to stay above bottom, with a max cap for aesthetics
+          height: isDesktop ? 'calc(100vh - 110px)' : 'calc(var(--vh, 1vh) * 50)',
+          maxHeight: isDesktop ? '700px' : 'calc(var(--vh, 1vh) * 50)',
         }}
         className={`
           fixed z-[100] flex flex-col bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-100
