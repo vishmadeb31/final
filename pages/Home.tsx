@@ -61,6 +61,22 @@ export const Home: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
 
+  // Resize handling: Keeps the active slide aligned when orientation/width changes
+  useEffect(() => {
+    const handleResize = () => {
+      if (scrollRef.current) {
+        const width = scrollRef.current.offsetWidth;
+        scrollRef.current.scrollTo({
+          left: width * currentSlide,
+          behavior: 'auto'
+        });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [currentSlide]);
+
   // Auto-slide logic
   useEffect(() => {
     if (isPaused) return;
@@ -74,7 +90,7 @@ export const Home: React.FC = () => {
           behavior: 'smooth'
         });
       }
-    }, 4000); // Increased interval slightly to match slower animations
+    }, 4500);
 
     return () => clearInterval(timer);
   }, [currentSlide, isPaused]);
@@ -83,6 +99,7 @@ export const Home: React.FC = () => {
     if (scrollRef.current) {
       const width = scrollRef.current.offsetWidth;
       const scrollLeft = scrollRef.current.scrollLeft;
+      // Added a small epsilon to handle fractional pixels and ensure reliable index snapping
       const newIndex = Math.round(scrollLeft / width);
       if (newIndex !== currentSlide && newIndex >= 0 && newIndex < SLIDES.length) {
         setCurrentSlide(newIndex);
@@ -104,38 +121,43 @@ export const Home: React.FC = () => {
     <div className="bg-[#F1F3F6] min-h-screen pt-[118px] md:pt-16 flex flex-col">
       <style>{`
         @keyframes slideInUp {
-          0% { opacity: 0; transform: translateY(50px); }
+          0% { opacity: 0; transform: translateY(40px); }
           100% { opacity: 1; transform: translateY(0); }
         }
         @keyframes slideInRight {
-          0% { opacity: 0; transform: translateX(100px); }
+          0% { opacity: 0; transform: translateX(60px); }
           100% { opacity: 1; transform: translateX(0); }
         }
         .animate-hero-up {
-          /* Slower duration (1s) and smoother curve for professional feel */
-          animation: slideInUp 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: slideInUp 0.8s cubic-bezier(0.25, 1, 0.5, 1) both;
         }
         .animate-hero-right {
-          /* Image comes in slightly slower (1.2s) for a staggered effect */
-          animation: slideInRight 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: slideInRight 1s cubic-bezier(0.25, 1, 0.5, 1) both;
         }
       `}</style>
 
        {/* Hero Carousel */}
       <div 
-        className="w-full h-56 md:h-80 relative bg-gray-100 group"
+        className="w-full h-56 md:h-80 relative bg-gray-100 group select-none"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setTimeout(() => setIsPaused(false), 2000)}
+        onTouchEnd={() => {
+          // Keep paused briefly after a manual swipe before resuming auto-scroll
+          setTimeout(() => setIsPaused(false), 3000);
+        }}
         role="region"
         aria-label="Promotional Carousel"
       >
          <div 
             ref={scrollRef}
             onScroll={handleScroll}
-            className="w-full h-full flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide touch-pan-y"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="w-full h-full flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide"
+            style={{ 
+              scrollbarWidth: 'none', 
+              msOverflowStyle: 'none',
+              touchAction: 'pan-x pan-y' // Explicitly allow all pans
+            }}
          >
             {SLIDES.map((slide, index) => {
                const isActive = index === currentSlide;
@@ -157,19 +179,19 @@ export const Home: React.FC = () => {
                       <div className="w-2/3 md:w-1/2 text-white relative z-20">
                          <h2 
                            className={`text-2xl md:text-5xl font-bold mb-2 md:mb-4 tracking-tight drop-shadow-md leading-tight ${isActive ? 'animate-hero-up' : 'opacity-0'}`}
-                           style={{ animationDelay: '100ms' }}
+                           style={{ animationDelay: '150ms' }}
                          >
                            {slide.title}
                          </h2>
                          <p 
                            className={`text-sm md:text-xl mb-4 md:mb-8 opacity-90 drop-shadow-sm font-medium leading-snug ${isActive ? 'animate-hero-up' : 'opacity-0'}`}
-                           style={{ animationDelay: '300ms' }}
+                           style={{ animationDelay: '350ms' }}
                          >
                            {slide.subtitle}
                          </p>
                          <div 
                            className={`${isActive ? 'animate-hero-up' : 'opacity-0'}`}
-                           style={{ animationDelay: '500ms' }}
+                           style={{ animationDelay: '550ms' }}
                          >
                             <Link 
                               to={slide.ctaLink} 
@@ -184,14 +206,13 @@ export const Home: React.FC = () => {
                       {/* Image (Right Side) */}
                       <div className="absolute right-0 top-0 bottom-0 w-1/2 md:w-5/12 block">
                          <div className="relative w-full h-full">
-                            {/* Gradient Overlay for seamless blending - Stronger on mobile */}
                             <div className={`absolute inset-0 bg-gradient-to-l ${slide.bgClass.split(' ')[1]} via-transparent to-transparent w-full md:w-2/3 z-10`}></div>
                             
                             <img 
                               src={slide.image} 
                               alt="" 
-                              className={`w-full h-full object-cover md:object-cover object-center transform ${isActive ? 'animate-hero-right' : 'opacity-0'}`}
-                              style={{ animationDelay: '200ms' }}
+                              className={`w-full h-full object-cover object-center transform ${isActive ? 'animate-hero-right' : 'opacity-0'}`}
+                              style={{ animationDelay: '250ms' }}
                             />
                          </div>
                       </div>
