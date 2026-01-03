@@ -18,15 +18,49 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
   const chatSessionRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatbotRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastWidth = useRef(window.innerWidth);
 
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  // Update desktop state on resize
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // BODY SCROLL LOCK: Prevents the page from scrolling/jumping when chat opens on mobile
+  useEffect(() => {
+    if (isOpen && !isDesktop) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      const scrollY = window.scrollY;
+      
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+
+      return () => {
+        document.body.style.overflow = originalStyle;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen, isDesktop]);
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   };
 
   useEffect(() => {
     if (isOpen) {
-        setTimeout(scrollToBottom, 300);
+        const timer = setTimeout(scrollToBottom, 350);
+        return () => clearTimeout(timer);
     }
   }, [messages, isOpen]);
 
@@ -71,12 +105,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
     setIsOpen(false);
   };
 
-  // Improved Viewport Height Logic: Only updates when width changes (orientation or browser resize)
-  // This prevents the chatbot from shrinking or moving when the keyboard appears.
+  // Improved Viewport Height Logic: Fixed at capture time, ignoring keyboard shifts
   useEffect(() => {
     const updateVh = () => {
-      // If width hasn't changed, we assume it's a keyboard toggle or URL bar shift
-      // and we keep the height strictly fixed.
       if (window.innerWidth !== lastWidth.current) {
         const vh = window.innerHeight * 0.01;
         document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -84,7 +115,6 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
       }
     };
 
-    // Initialize height on first mount
     const initialVh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${initialVh}px`);
 
@@ -103,17 +133,11 @@ Specs: ${Object.entries(p.specs).map(([k,v]) => `${k}:${v}`).join(', ')}
 `).join('\n---\n');
 
           const systemInstruction = `
-Buy Xtra Chatbot (FINAL VERSION - HIGH SPEED MODE)
-Role: Buy Xtra Assistant for mobile/electronics.
-Goal: Provide FAST product info and drive to WhatsApp (+91 7797037684).
-
-🌐 Lang: Eng, Ben (বাংলা), Hin (हिंदी). Detect user lang and reply same. Be extremely concise.
-
-📦 Data: ONLY use this inventory:
-${productData}
-
-🟢 Buying: ONLY via WhatsApp +91 7797037684. "Click Buy on WhatsApp button to order."
-Rules: Keep answers VERY FAST and SHORT.
+Buy Xtra Support Assistant (ULTRA-STABLE MODE)
+Role: Sales Support. Fast, concise replies in user's lang (Bengali/Hindi/English).
+Data: Use inventory provided.
+Sales: Drive to WhatsApp +91 7797037684.
+Instruction: Keep text minimal and helpful.
 `;
 
           try {
@@ -178,19 +202,12 @@ Rules: Keep answers VERY FAST and SHORT.
     if (e.key === 'Enter') handleSend();
   };
 
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-
-  useEffect(() => {
-    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   return (
     <>
+      {/* Mobile/Tablet Backdrop */}
       <div 
         className={`
-            fixed inset-0 bg-black/20 backdrop-blur-[1px] z-[90] transition-opacity duration-[280ms] lg:hidden
+            fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[90] transition-opacity duration-300 lg:hidden
             ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
         `}
         onClick={handleClose}
@@ -205,23 +222,22 @@ Rules: Keep answers VERY FAST and SHORT.
         }}
         className={`
           fixed z-[100] flex flex-col bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-100
-          transition-all duration-[400ms] cubic-bezier(0.19, 1, 0.22, 1)
+          transition-all duration-[500ms] cubic-bezier(0.19, 1, 0.22, 1)
           w-[92%] left-1/2 top-[68px]
           -translate-x-1/2 
-          origin-top
           lg:w-[380px] 
           lg:left-auto lg:right-6 lg:top-[74px]
           lg:translate-x-0
-          lg:origin-top-right
           ${isOpen 
-            ? 'opacity-100 translate-y-0 pointer-events-auto' 
-            : 'opacity-0 -translate-y-4 pointer-events-none'}
+            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+            : 'opacity-0 -translate-y-4 scale-[0.98] pointer-events-none'}
         `}
         role="dialog"
         aria-modal="true"
         aria-hidden={!isOpen}
       >
-        <div className="bg-[#2874F0] p-4 flex justify-between items-center text-white shrink-0 shadow-sm">
+        {/* Header */}
+        <div className="bg-[#2874F0] p-4 flex justify-between items-center text-white shrink-0 shadow-sm relative z-10">
           <div className="flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
               <Bot className="w-5 h-5 text-white" />
@@ -230,7 +246,7 @@ Rules: Keep answers VERY FAST and SHORT.
               <h3 className="font-bold text-base leading-tight">Buy Xtra Support</h3>
               <div className="flex items-center gap-1.5 opacity-90">
                 <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-                <span className="text-[11px] font-medium text-blue-50">Online</span>
+                <span className="text-[11px] font-medium text-blue-50">Active Now</span>
               </div>
             </div>
           </div>
@@ -243,7 +259,11 @@ Rules: Keep answers VERY FAST and SHORT.
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 bg-[#F1F3F6] space-y-4 scroll-smooth overscroll-contain">
+        {/* Messages */}
+        <div 
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto p-4 bg-[#F1F3F6] space-y-4 scroll-smooth overscroll-contain"
+        >
            {messages.map((msg, idx) => (
              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                 <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm break-words ${
@@ -259,13 +279,14 @@ Rules: Keep answers VERY FAST and SHORT.
              <div className="flex justify-start animate-in fade-in duration-300">
                <div className="bg-white text-gray-800 border border-gray-100 shadow-sm p-4 rounded-2xl rounded-bl-none flex items-center gap-2.5">
                   <Loader2 className="w-4 h-4 animate-spin text-[#2874F0]" />
-                  <span className="text-xs font-medium text-gray-500">Fast typing...</span>
+                  <span className="text-xs font-medium text-gray-500">Typing...</span>
                </div>
              </div>
            )}
-           <div ref={messagesEndRef} />
+           <div ref={messagesEndRef} className="h-2" />
         </div>
 
+        {/* Input */}
         <div className="p-3 bg-white border-t border-gray-100 shrink-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
            <div className="flex gap-2 items-center">
              <input
@@ -273,7 +294,7 @@ Rules: Keep answers VERY FAST and SHORT.
                value={input}
                onChange={(e) => setInput(e.target.value)}
                onKeyDown={handleKeyPress}
-               placeholder="Ask support..."
+               placeholder="Type message..."
                className="flex-1 border border-gray-200 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-[#2874F0] bg-gray-50 transition-all"
                aria-label="Chat input"
              />
