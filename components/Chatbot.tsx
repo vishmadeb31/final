@@ -29,7 +29,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
     }
   }, [messages, isOpen]);
 
-  // Handle outside click and desktop resize
+  // Handle outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isOpen && chatbotRef.current && !chatbotRef.current.contains(event.target as Node)) {
@@ -37,20 +37,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
       }
     };
 
-    const handleDesktopResize = () => {
-      if (isOpen && window.innerWidth >= 768) {
-        setIsOpen(false);
-      }
-    };
-
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('resize', handleDesktopResize);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('resize', handleDesktopResize);
     };
   }, [isOpen, setIsOpen]);
 
@@ -71,7 +63,6 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
     }
   }, [isOpen, setIsOpen]);
 
-  // Ensure history state is synced if closed via UI button
   const handleClose = () => {
     if (window.history.state?.chatbotOpen) {
       window.history.back();
@@ -79,21 +70,17 @@ export const Chatbot: React.FC<ChatbotProps> = ({ isOpen, setIsOpen }) => {
     setIsOpen(false);
   };
 
-  // Dynamic Viewport Height Logic for Keyboard Support
+  // Dynamic Viewport Height Logic
   useEffect(() => {
     const updateVh = () => {
       const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
-      
-      if (isOpen) {
-        scrollToBottom();
-      }
+      if (isOpen) scrollToBottom();
     };
 
     window.visualViewport?.addEventListener('resize', updateVh);
     window.visualViewport?.addEventListener('scroll', updateVh);
     window.addEventListener('resize', updateVh);
-    
     updateVh();
 
     return () => {
@@ -139,17 +126,12 @@ Rules: Keep answers VERY FAST and SHORT.
           }
         }
     };
-    
     initChat();
   }, []);
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    
-    if (!chatSessionRef.current) {
-         setMessages(prev => [...prev, { role: 'model', text: "Service unavailable. Please refresh." }]);
-         return;
-    }
+    if (!chatSessionRef.current) return;
 
     const userMsg = input;
     setInput('');
@@ -158,7 +140,6 @@ Rules: Keep answers VERY FAST and SHORT.
 
     try {
       const result = await chatSessionRef.current.sendMessageStream({ message: userMsg });
-      
       let fullText = '';
       let isFirstChunk = true;
 
@@ -167,7 +148,6 @@ Rules: Keep answers VERY FAST and SHORT.
           const text = c.text;
           if (text) {
               fullText += text;
-              
               if (isFirstChunk) {
                   setIsLoading(false);
                   setMessages(prev => [...prev, { role: 'model', text: fullText }]);
@@ -175,10 +155,7 @@ Rules: Keep answers VERY FAST and SHORT.
               } else {
                   setMessages(prev => {
                       const newMessages = [...prev];
-                      const lastIndex = newMessages.length - 1;
-                      if (newMessages[lastIndex].role === 'model') {
-                          newMessages[lastIndex] = { ...newMessages[lastIndex], text: fullText };
-                      }
+                      newMessages[newMessages.length - 1] = { ...newMessages[newMessages.length - 1], text: fullText };
                       return newMessages;
                   });
               }
@@ -197,11 +174,22 @@ Rules: Keep answers VERY FAST and SHORT.
     if (e.key === 'Enter') handleSend();
   };
 
+  // State to track if it's desktop view for height adjustment
+  // Tablets are generally < 1024px in many cases or landscape up to 1280px.
+  // We'll target <= 1023px for the "Mobile/Tablet Half Height" logic.
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <>
       <div 
         className={`
-            fixed inset-0 bg-black/20 backdrop-blur-[1px] z-[90] transition-opacity duration-[280ms] md:hidden
+            fixed inset-0 bg-black/20 backdrop-blur-[1px] z-[90] transition-opacity duration-[280ms] lg:hidden
             ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
         `}
         onClick={handleClose}
@@ -211,23 +199,22 @@ Rules: Keep answers VERY FAST and SHORT.
       <div 
         ref={chatbotRef}
         style={{
-          height: 'calc(var(--vh, 1vh) * 100 - 78px)',
-          maxHeight: 'calc(var(--vh, 1vh) * 100 - 78px)',
+          height: isDesktop ? '650px' : 'calc(var(--vh, 1vh) * 50)',
+          maxHeight: isDesktop ? '650px' : 'calc(var(--vh, 1vh) * 50)',
         }}
         className={`
           fixed z-[100] flex flex-col bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-100
-          transition-all duration-[200ms] ease-out
+          transition-all duration-[400ms] cubic-bezier(0.19, 1, 0.22, 1)
           w-[92%] left-1/2 top-[68px]
           -translate-x-1/2 
           origin-top
-          md:w-[380px] 
-          md:h-[calc(var(--vh,1vh)*100-110px)] md:max-h-[650px]
-          md:left-auto md:right-6 md:top-[74px]
-          md:translate-x-0
-          md:origin-top-right
+          lg:w-[380px] 
+          lg:left-auto lg:right-6 lg:top-[74px]
+          lg:translate-x-0
+          lg:origin-top-right
           ${isOpen 
             ? 'opacity-100 translate-y-0 pointer-events-auto' 
-            : 'opacity-0 -translate-y-12 pointer-events-none'}
+            : 'opacity-0 -translate-y-4 pointer-events-none'}
         `}
         role="dialog"
         aria-modal="true"
@@ -249,7 +236,6 @@ Rules: Keep answers VERY FAST and SHORT.
           <button 
              onClick={handleClose} 
              className="hover:bg-white/20 p-2 rounded-full transition-colors active:scale-95"
-             title="Minimize Chat"
              aria-label="Close Chat"
           >
              <ChevronUp className="w-5 h-5" />
@@ -286,21 +272,17 @@ Rules: Keep answers VERY FAST and SHORT.
                value={input}
                onChange={(e) => setInput(e.target.value)}
                onKeyDown={handleKeyPress}
-               placeholder="Ask in English, বাংলা or हिंदी..."
-               className="flex-1 border border-gray-200 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-[#2874F0] focus:ring-1 focus:ring-[#2874F0] bg-gray-50 transition-all placeholder:text-gray-400"
+               placeholder="Ask support..."
+               className="flex-1 border border-gray-200 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-[#2874F0] bg-gray-50 transition-all"
                aria-label="Chat input"
              />
              <button 
                onClick={handleSend}
                disabled={isLoading || !input.trim()}
-               className="bg-[#2874F0] text-white p-3 rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95 flex items-center justify-center w-11 h-11 shrink-0"
-               aria-label="Send message"
+               className="bg-[#2874F0] text-white p-3 rounded-full hover:bg-blue-600 disabled:opacity-50 transition-all shadow-sm active:scale-95 flex items-center justify-center w-11 h-11 shrink-0"
              >
                <Send className="w-5 h-5 ml-0.5" />
              </button>
-           </div>
-           <div className="text-center mt-2 flex items-center justify-center gap-1.5 opacity-60">
-              <span className="text-[10px] font-medium text-gray-500">Powered by BuyXtra AI</span>
            </div>
         </div>
       </div>
